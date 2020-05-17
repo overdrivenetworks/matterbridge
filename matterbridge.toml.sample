@@ -98,6 +98,12 @@ RejoinDelay=0
 #Only works in IRC right now.
 ColorNicks=false
 
+#If enabled, this skips gIRC's internal rate limiting. As the name suggests,
+#this may cause flooding, so only enable it if you are able to exempt the bot from
+#rate limiting on the IRCd.
+#OPTIONAL (default false)
+AllowFlood=false
+
 #RunCommands allows you to send RAW irc commands after connection
 #Array of strings
 #OPTIONAL (default empty)

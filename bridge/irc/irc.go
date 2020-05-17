@@ -269,6 +269,7 @@ func (b *Birc) getClient() (*girc.Client, error) {
 		SSL:           b.GetBool("UseTLS"),
 		TLSConfig:     &tls.Config{InsecureSkipVerify: b.GetBool("SkipTLSVerify"), ServerName: server}, //nolint:gosec
 		PingDelay:     time.Minute,
+		AllowFlood:    b.GetBool("AllowFlood"),
 		SupportedCaps: map[string][]string{ "overdrivenetworks.com/relaymsg": nil, },
 	})
 	return i, nil

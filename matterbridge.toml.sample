@@ -98,6 +98,16 @@ RejoinDelay=0
 #Only works in IRC right now.
 ColorNicks=false
 
+#Use experimental RELAYMSG extension for username spoofing on IRC.
+#This requires that the IRCd support the overdrivenetworks.com/relaymsg vendor tag, from e.g.
+#https://github.com/overdrivenetworks/inspircd-contrib/blob/relaymsg/3.0/m_relaymsg.cpp
+#Spoofed nicks will use the configured RemoteNickFormat, replacing special characters
+#(!+%@&#$:'"?*,.) with a hyphen (-).
+#This option overrides ColorNicks.
+#OPTIONAL (default false)
+UseRelayMsg=false
+#RemoteNickFormat="{NICK}/{PROTOCOL}"
+
 #If enabled, this skips gIRC's internal rate limiting. As the name suggests,
 #this may cause flooding, so only enable it if you are able to exempt the bot from
 #rate limiting on the IRCd.
@@ -1696,7 +1706,7 @@ enable=true
     # REQUIRED
     account="irc.freenode"
 
-    # The channel key in each gateway is mapped to a similar group chat ID on the chat platform 
+    # The channel key in each gateway is mapped to a similar group chat ID on the chat platform
     # To find the group chat ID for different platforms, refer to the table below
     #
     # Platform   |   Identifier name  |            Example            | Description

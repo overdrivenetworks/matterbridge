@@ -218,10 +218,10 @@ func (b *Birc) doSend() {
 			username = sanitizeNick(username)
 
 			if msg.Event == config.EventUserAction {
-				b.i.Cmd.SendRaw(fmt.Sprintf("RELAYMSG %s %s :\x01ACTION %s\x01", msg.Channel, username, msg.Text))
+				b.i.Cmd.SendRawf("RELAYMSG %s %s :\x01ACTION %s\x01", msg.Channel, username, msg.Text)
 			} else {
 				b.Log.Debugf("Sending RELAYMSG to channel %s: nick=%s", msg.Channel, username)
-				b.i.Cmd.SendRaw(fmt.Sprintf("RELAYMSG %s %s :%s", msg.Channel, username, msg.Text))
+				b.i.Cmd.SendRawf("RELAYMSG %s %s :%s", msg.Channel, username, msg.Text)
 			}
 		} else {
 			if b.GetBool("Colornicks") {

@@ -216,12 +216,18 @@ func (b *Birc) doSend() {
 		// RELAYMSG extension: https://github.com/overdrivenetworks/inspircd-contrib/blob/relaymsg/3.0/m_relaymsg.cpp
 		if b.i.HasCapability("overdrivenetworks.com/relaymsg") && b.GetBool("UseRelayMsg") {
 			username = sanitizeNick(username)
+			text := msg.Text
+
+			// Work around girc chomping leading commas on single word messages?
+			if strings.HasPrefix(text, ":") && !strings.ContainsRune(text, ' ') {
+				text = ":" + text
+			}
 
 			if msg.Event == config.EventUserAction {
-				b.i.Cmd.SendRawf("RELAYMSG %s %s :\x01ACTION %s\x01", msg.Channel, username, msg.Text)
+				b.i.Cmd.SendRawf("RELAYMSG %s %s :\x01ACTION %s\x01", msg.Channel, username, text)
 			} else {
 				b.Log.Debugf("Sending RELAYMSG to channel %s: nick=%s", msg.Channel, username)
-				b.i.Cmd.SendRawf("RELAYMSG %s %s :%s", msg.Channel, username, msg.Text)
+				b.i.Cmd.SendRawf("RELAYMSG %s %s :%s", msg.Channel, username, text)
 			}
 		} else {
 			if b.GetBool("Colornicks") {

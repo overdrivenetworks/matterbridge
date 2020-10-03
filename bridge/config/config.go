@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -93,11 +94,13 @@ type Protocol struct {
 	JoinDelay              string // all protocols
 	Label                  string // all protocols
 	Login                  string // mattermost, matrix
+	LogFile                string // general
 	MediaDownloadBlackList []string
 	MediaDownloadPath      string // Basically MediaServerUpload, but instead of uploading it, just write it to a file on the same server.
 	MediaDownloadSize      int    // all protocols
 	MediaServerDownload    string
 	MediaServerUpload      string
+	MediaConvertTgs        string     // telegram
 	MediaConvertWebPToPNG  bool       // telegram
 	MessageDelay           int        // IRC, time in millisecond to wait between messages
 	MessageFormat          string     // telegram
@@ -219,6 +222,7 @@ type BridgeValues struct {
 type Config interface {
 	Viper() *viper.Viper
 	BridgeValues() *BridgeValues
+	IsKeySet(key string) bool
 	GetBool(key string) (bool, bool)
 	GetInt(key string) (int, bool)
 	GetString(key string) (string, bool)
@@ -246,6 +250,15 @@ func NewConfig(rootLogger *logrus.Logger, cfgfile string) Config {
 
 	cfgtype := detectConfigType(cfgfile)
 	mycfg := newConfigFromString(logger, input, cfgtype)
+	if mycfg.cv.General.LogFile != "" {
+		logfile, err := os.OpenFile(mycfg.cv.General.LogFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+		if err == nil {
+			logger.Info("Opening log file ", mycfg.cv.General.LogFile)
+			rootLogger.Out = logfile
+		} else {
+			logger.Warn("Failed to open ", mycfg.cv.General.LogFile)
+		}
+	}
 	if mycfg.cv.General.MediaDownloadSize == 0 {
 		mycfg.cv.General.MediaDownloadSize = 1000000
 	}
@@ -301,6 +314,12 @@ func (c *config) BridgeValues() *BridgeValues {
 
 func (c *config) Viper() *viper.Viper {
 	return c.v
+}
+
+func (c *config) IsKeySet(key string) bool {
+	c.RLock()
+	defer c.RUnlock()
+	return c.v.IsSet(key)
 }
 
 func (c *config) GetBool(key string) (bool, bool) {
@@ -360,6 +379,11 @@ type TestConfig struct {
 	Config
 
 	Overrides map[string]interface{}
+}
+
+func (c *TestConfig) IsKeySet(key string) bool {
+	_, ok := c.Overrides[key]
+	return ok || c.Config.IsKeySet(key)
 }
 
 func (c *TestConfig) GetBool(key string) (bool, bool) {

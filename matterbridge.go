@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	version = "1.17.5"
+	version = "1.18.3"
 	githash string
 
 	flagConfig  = flag.String("conf", "matterbridge.toml", "config file")
@@ -50,6 +50,15 @@ func main() {
 
 	cfg := config.NewConfig(rootLogger, *flagConfig)
 	cfg.BridgeValues().General.Debug = *flagDebug
+
+	// if logging to a file, ensure it is closed when the program terminates
+	// nolint:errcheck
+	defer func() {
+		if f, ok := rootLogger.Out.(*os.File); ok {
+			f.Sync()
+			f.Close()
+		}
+	}()
 
 	r, err := gateway.NewRouter(rootLogger, cfg, bridgemap.FullMap)
 	if err != nil {

@@ -2,17 +2,19 @@ package bmatrix
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html"
 	"mime"
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/42wim/matterbridge/bridge"
 	"github.com/42wim/matterbridge/bridge/config"
 	"github.com/42wim/matterbridge/bridge/helper"
-	matrix "github.com/matterbridge/gomatrix"
+	matrix "github.com/matrix-org/gomatrix"
 )
 
 type Bmatrix struct {
@@ -20,13 +22,21 @@ type Bmatrix struct {
 	UserID  string
 	RoomMap map[string]string
 	sync.RWMutex
-	htmlTag *regexp.Regexp
+	htmlTag            *regexp.Regexp
+	htmlReplacementTag *regexp.Regexp
 	*bridge.Config
+}
+
+type httpError struct {
+	Errcode      string `json:"errcode"`
+	Err          string `json:"error"`
+	RetryAfterMs int    `json:"retry_after_ms"`
 }
 
 func New(cfg *bridge.Config) bridge.Bridger {
 	b := &Bmatrix{Config: cfg}
 	b.htmlTag = regexp.MustCompile("</.*?>")
+	b.htmlReplacementTag = regexp.MustCompile("<[^>]*>")
 	b.RoomMap = make(map[string]string)
 	return b
 }
@@ -39,9 +49,10 @@ func (b *Bmatrix) Connect() error {
 		return err
 	}
 	resp, err := b.mc.Login(&matrix.ReqLogin{
-		Type:     "m.login.password",
-		User:     b.GetString("Login"),
-		Password: b.GetString("Password"),
+		Type:       "m.login.password",
+		User:       b.GetString("Login"),
+		Password:   b.GetString("Password"),
+		Identifier: matrix.NewUserIdentifier(b.GetString("Login")),
 	})
 	if err != nil {
 		return err
@@ -58,14 +69,25 @@ func (b *Bmatrix) Disconnect() error {
 }
 
 func (b *Bmatrix) JoinChannel(channel config.ChannelInfo) error {
+retry:
 	resp, err := b.mc.JoinRoom(channel.Name, "", nil)
 	if err != nil {
+		httpErr := handleError(err)
+		if httpErr.Errcode == "M_LIMIT_EXCEEDED" {
+			b.Log.Infof("getting ratelimited by matrix, sleeping approx %d seconds before joining %s", httpErr.RetryAfterMs/1000, channel.Name)
+			time.Sleep((time.Duration(httpErr.RetryAfterMs) * time.Millisecond))
+
+			goto retry
+		}
+
 		return err
 	}
+
 	b.Lock()
 	b.RoomMap[resp.RoomID] = channel.Name
 	b.Unlock()
-	return err
+
+	return nil
 }
 
 func (b *Bmatrix) Send(msg config.Message) (string, error) {
@@ -132,13 +154,20 @@ func (b *Bmatrix) Send(msg config.Message) (string, error) {
 		return resp.EventID, err
 	}
 
-	username := html.EscapeString(msg.Username)
+	var username string
+	var plainUsername string
 	// check if we have a </tag>. if we have, we don't escape HTML. #696
 	if b.htmlTag.MatchString(msg.Username) {
 		username = msg.Username
+		// remove the HTML formatting for beautiful push messages #1188
+		plainUsername = b.htmlReplacementTag.ReplaceAllString(msg.Username, "")
+	} else {
+		username = html.EscapeString(msg.Username)
+		plainUsername = msg.Username
 	}
+
 	// Post normal message with HTML support (eg riot.im)
-	resp, err := b.mc.SendHTML(channel, msg.Username+msg.Text, username+helper.ParseMarkdown(msg.Text))
+	resp, err := b.mc.SendFormattedText(channel, plainUsername+msg.Text, username+helper.ParseMarkdown(msg.Text))
 	if err != nil {
 		return "", err
 	}
@@ -354,13 +383,29 @@ func (b *Bmatrix) handleUploadFile(msg *config.Message, channel string, fi *conf
 		}
 	case strings.Contains(mtype, "application"):
 		b.Log.Debugf("sendFile %s", res.ContentURI)
-		_, err = b.mc.SendFile(channel, fi.Name, res.ContentURI, mtype, uint(len(*fi.Data)))
+		_, err = b.mc.SendMessageEvent(channel, "m.room.message", matrix.FileMessage{
+			MsgType: "m.file",
+			Body:    fi.Name,
+			URL:     res.ContentURI,
+			Info: matrix.FileInfo{
+				Mimetype: mtype,
+				Size:     uint(len(*fi.Data)),
+			},
+		})
 		if err != nil {
 			b.Log.Errorf("sendFile failed: %#v", err)
 		}
 	case strings.Contains(mtype, "audio"):
 		b.Log.Debugf("sendAudio %s", res.ContentURI)
-		_, err = b.mc.SendAudio(channel, fi.Name, res.ContentURI, mtype, uint(len(*fi.Data)))
+		_, err = b.mc.SendMessageEvent(channel, "m.room.message", matrix.AudioMessage{
+			MsgType: "m.audio",
+			Body:    fi.Name,
+			URL:     res.ContentURI,
+			Info: matrix.AudioInfo{
+				Mimetype: mtype,
+				Size:     uint(len(*fi.Data)),
+			},
+		})
 		if err != nil {
 			b.Log.Errorf("sendAudio failed: %#v", err)
 		}
@@ -386,14 +431,39 @@ func (b *Bmatrix) containsAttachment(content map[string]interface{}) bool {
 
 // getAvatarURL returns the avatar URL of the specified sender
 func (b *Bmatrix) getAvatarURL(sender string) string {
-	mxcURL, err := b.mc.GetSenderAvatarURL(sender)
+	urlPath := b.mc.BuildURL("profile", sender, "avatar_url")
+
+	s := struct {
+		AvatarURL string `json:"avatar_url"`
+	}{}
+
+	err := b.mc.MakeRequest("GET", urlPath, nil, &s)
 	if err != nil {
 		b.Log.Errorf("getAvatarURL failed: %s", err)
 		return ""
 	}
-	url := strings.ReplaceAll(mxcURL, "mxc://", b.GetString("Server")+"/_matrix/media/r0/thumbnail/")
+	url := strings.ReplaceAll(s.AvatarURL, "mxc://", b.GetString("Server")+"/_matrix/media/r0/thumbnail/")
 	if url != "" {
 		url += "?width=37&height=37&method=crop"
 	}
 	return url
+}
+
+func handleError(err error) *httpError {
+	mErr, ok := err.(matrix.HTTPError)
+	if !ok {
+		return &httpError{
+			Err: "not a HTTPError",
+		}
+	}
+
+	var httpErr httpError
+
+	if err := json.Unmarshal(mErr.Contents, &httpErr); err != nil {
+		return &httpError{
+			Err: "unmarshal failed",
+		}
+	}
+
+	return &httpErr
 }

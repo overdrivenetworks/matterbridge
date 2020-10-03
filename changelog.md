@@ -1,3 +1,79 @@
+# v1.18.3
+
+## Enhancements
+
+- nctalk: Add TLSConfig to nctalk (#1195)
+- whatsapp: Handle broadcasts as groups in Whatsapp #1213
+- matrix: switch to upstream gomatrix #1219
+- api: support multiple websocket clients #1205
+
+## Bugfix
+
+- general: update vendor
+- zulip: Check location of avatarURL (zulip). Fixes #1214 (#1227)
+- nctalk: Fix issue with too many open files #1223
+- nctalk: Fix mentions #1222
+- nctalk: Fix message replays #1220
+
+This release couldn't exist without the following contributors:
+@gary-kim, @tilosp, @NikkyAI, @escoand, @42wim
+
+# v1.18.2
+
+## Bugfix
+
+- zulip: Fix error loop (zulip) (#1210)
+- whatsapp: Update whatsapp vendor and fix a panic (#1209)
+
+This release couldn't exist without the following contributors:
+@SuperSandro2000, @42wim
+
+# v1.18.1
+
+## New features
+
+- telegram: Support Telegram animated stickers (tgs) format (#1173). See https://github.com/42wim/matterbridge/wiki/Settings#mediaConverttgs for more info
+
+## Enhancements
+
+- matrix: Remove HTML formatting for push messages (#1188) (#1189)
+- mattermost: Use mattermost v5 module (#1192)
+
+## Bugfix
+
+- whatsapp: Handle panic in whatsapp. Fixes #1180 (#1184)
+- nctalk: Fix Nextcloud Talk connection failure (#1179)
+- matrix: Sleep when ratelimited on joins (matrix). Fixes #1201 (#1206)
+
+This release couldn't exist without the following contributors:
+@42wim, @BenWiederhake, @Dellle, @gary-kim
+
+# v1.18.0
+
+## New features
+
+- nctalk: new protocol added. Add Nextcloud Talk support #1167
+- general: Add an option to log into a file rather than stdout (#1168)
+- api: Add websocket to API (#970)
+
+## Enhancements
+
+- telegram: Fix MarkdownV2 support in Telegram (#1169)
+- whatsapp: Reload user information when a new contact is detected (whatsapp) (#1160)
+- api: Add sane RemoteNickFormat default for API (#1157)
+- irc: Skip gIRC built-in rate limiting (irc) (#1164)
+- irc: Only colour IRC nicks if there is one. (#1161)
+- docker: Combine runs to one layer (#1151)
+
+## Bugfix
+
+- general: Update dependencies for 1.18.0 release (#1175)
+
+Discord users are encouraged to upgrade, this release works with the move to the discord.com domain.
+
+This release couldn't exist without the following contributors:
+@42wim, @jlu5, @qaisjp, @TheHolyRoger, @SuperSandro2000, @gary-kim, @z3bra, @greenx, @haykam821, @nathanaelhoun
+
 # v1.17.5
 
 ## Enhancements

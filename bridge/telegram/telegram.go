@@ -2,6 +2,7 @@ package btelegram
 
 import (
 	"html"
+	"log"
 	"strconv"
 	"strings"
 
@@ -15,6 +16,9 @@ const (
 	unknownUser = "unknown"
 	HTMLFormat  = "HTML"
 	HTMLNick    = "htmlnick"
+	MarkdownV2  = "MarkdownV2"
+	FormatPng   = "png"
+	FormatWebp  = "webp"
 )
 
 type Btelegram struct {
@@ -24,6 +28,16 @@ type Btelegram struct {
 }
 
 func New(cfg *bridge.Config) bridge.Bridger {
+	tgsConvertFormat := cfg.GetString("MediaConvertTgs")
+	if tgsConvertFormat != "" {
+		err := helper.CanConvertTgsToX()
+		if err != nil {
+			log.Fatalf("Telegram bridge configured to convert .tgs files to '%s', but lottie does not appear to work:\n%#v", tgsConvertFormat, err)
+		}
+		if tgsConvertFormat != FormatPng && tgsConvertFormat != FormatWebp {
+			log.Fatalf("Telegram bridge configured to convert .tgs files to '%s', but only '%s' and '%s' are supported.", FormatPng, FormatWebp, tgsConvertFormat)
+		}
+	}
 	return &Btelegram{Config: cfg, avatarMap: make(map[string]string)}
 }
 
@@ -125,6 +139,10 @@ func (b *Btelegram) sendMessage(chatid int64, username, text string) (string, er
 	if b.GetString("MessageFormat") == "Markdown" {
 		b.Log.Debug("Using mode markdown")
 		m.ParseMode = tgbotapi.ModeMarkdown
+	}
+	if b.GetString("MessageFormat") == MarkdownV2 {
+		b.Log.Debug("Using mode MarkdownV2")
+		m.ParseMode = MarkdownV2
 	}
 	if strings.ToLower(b.GetString("MessageFormat")) == HTMLNick {
 		b.Log.Debug("Using mode HTML - nick only")

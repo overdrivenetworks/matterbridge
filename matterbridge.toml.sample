@@ -98,10 +98,12 @@ RejoinDelay=0
 #Only works in IRC right now.
 ColorNicks=false
 
-#Use experimental RELAYMSG extension for username spoofing on IRC.
-#This requires that the IRCd support the overdrivenetworks.com/relaymsg vendor tag, from e.g.
-#https://github.com/overdrivenetworks/inspircd-contrib/blob/relaymsg/3.0/m_relaymsg.cpp
-#Spoofed nicks will use the configured RemoteNickFormat, replacing special characters
+#Use the experimental RELAYMSG extension for username spoofing on IRC.
+#This requires special support on the IRCd (currently Oragono or InspIRCd 3 with
+#a custom module).
+#See https://github.com/jlu5/ircv3-specifications/blob/master/extensions/relaymsg.md
+#for a more in-depth description on how this feature works.
+#Spoofed nicks will use the configured RemoteNickFormat, replacing reserved characters on IRC
 #(!+%@&#$:'"?*,.) with a hyphen (-).
 #This option overrides ColorNicks.
 #OPTIONAL (default false)

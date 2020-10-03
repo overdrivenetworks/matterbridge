@@ -218,8 +218,10 @@ func (b *Birc) doSend() {
 		<-throttle.C
 		username := msg.Username
 
-		// RELAYMSG extension: https://github.com/overdrivenetworks/inspircd-contrib/blob/relaymsg/3.0/m_relaymsg.cpp
-		if b.i.HasCapability("overdrivenetworks.com/relaymsg") && b.GetBool("UseRelayMsg") {
+		// Optional support for the proposed RELAYMSG extension, described at
+		// https://github.com/jlu5/ircv3-specifications/blob/master/extensions/relaymsg.md
+		if (b.i.HasCapability("overdrivenetworks.com/relaymsg") || b.i.HasCapability("draft/relaymsg")) &&
+				b.GetBool("UseRelayMsg") {
 			username = sanitizeNick(username)
 			text := msg.Text
 
@@ -281,7 +283,7 @@ func (b *Birc) getClient() (*girc.Client, error) {
 		TLSConfig:     &tls.Config{InsecureSkipVerify: b.GetBool("SkipTLSVerify"), ServerName: server}, //nolint:gosec
 		PingDelay:     time.Minute,
 		AllowFlood:    b.GetBool("AllowFlood"),
-		SupportedCaps: map[string][]string{ "overdrivenetworks.com/relaymsg": nil, },
+		SupportedCaps: map[string][]string{ "overdrivenetworks.com/relaymsg": nil, "draft/relaymsg": nil },
 	})
 	return i, nil
 }
